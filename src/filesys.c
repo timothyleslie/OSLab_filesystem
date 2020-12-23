@@ -40,7 +40,7 @@ int read_spblock_from_disk()
 
 /**
  * @brief 根据inode_id读取inode块, 并且将inode_id的值存放到inode_buf中
- * @return 读取失败返回-1, 成功返回0
+ * @return 读取失败返回NULL, 成功返回inode_id对应的inode
  */
 inode* read_inode_block_from_disk(int inode_id)
 {
@@ -94,12 +94,9 @@ int write_block_to_disk(int block_id)
 int write_spblock_to_disk()
 {
     memcpy(buf, &super_block_buf, BLOCK_SIZE);
-
-    sp_block test_block;
     
     if(!write_block_to_disk(SUPER_BLOCK_INDEX))
     {
-        memcpy(&test_block, buf, BLOCK_SIZE);
         return 0;
     }
     
@@ -190,14 +187,189 @@ void shutdown()
     exit(0);
 }
 
+
+int get_free_inode()
+{
+    read_spblock_from_disk();
+    if(super_block_buf.free_inode_count==0)
+    {
+        printf("No more inodes\n");
+        return -1;
+    }
+
+    int mask;
+    for(int i=0; i<32; i++)
+    {
+        mask = 0x80000000;
+        for(int j=0; j<32; j++)
+        {
+            if(mask & super_block_buf.inode_map[i])
+            {
+                mask >>= 1;
+                continue;
+            }
+            else
+            {
+                super_block_buf.inode_map[i] |= mask;
+                super_block_buf.free_inode_count -= 1;
+                write_spblock_to_disk();
+                return i*32+j;
+            }    
+        }
+    }
+}
+
+
+int get_free_block(int block_num, int* blocks_index)
+{
+    read_spblock_from_disk();
+    if(super_block_buf.free_block_count < block_num)
+    {
+        printf("No enough free blocks\n");
+        return -1;
+    }
+
+    int mask;
+    for(int i=0; i<128; i++)
+    {
+        mask = 0x80000000;
+        for(int j=0; j<32; j++)
+        {
+            if(mask & super_block_buf.block_map[i])
+            {
+                mask >>= 1;
+                continue;
+            }
+            else
+            {
+                super_block_buf.block_map[i] |= mask;
+                super_block_buf.free_block_count -= 1;
+                *blocks_index = i*128+j;
+                block_num -= 1;
+                if(block_num ==0)
+                {
+                    return 0;
+                }
+                else
+                {
+                    blocks_index ++;
+                }  
+            }
+            
+        }
+    }
+}
+
+
+int find_path(char *path, char *name)
+{
+    int i=0;
+    int j=0;
+    int inode_id=0;
+
+    i = path[0]=='/' ? 1:0;
+    while(path[i] != '\0')
+    {
+        if(path[i]!='/')
+        {
+            name[j++] = path[i];
+        }
+
+        if(path[i]=='/' && path[i+1]=='\0')
+        {
+            name[j] = '\0';
+            break;
+        }
+
+        if(path[i]=='/'&&path[i+1]!='\0')
+        {
+            name[j] = '\0';
+            j=0;
+            inode* inode_tmp = read_inode_block_from_disk(inode_id);
+            int success = 0;
+            for(int k=0; k<inode_tmp->size; k++)
+            {
+                read_dir_table_from_disk(inode_tmp->block_point[k]);
+                for(int l=0; l<8; l++)
+                {
+                    if(dir_table[l].valid==DIR_VALID
+                        && dir_table[l].type==TYPE_FOLDER
+                        && !strcmp(dir_table[l].name, name))
+                        {
+                            inode_id = dir_table[l].inode_id;
+                            success = 1;
+                            k = inode_tmp->size;
+                        }
+                }
+            }
+
+            if(!success)
+            {
+                printf("Directory doesn't exist\n");
+                return -1;
+            }
+        }
+
+        i++;
+    }
+    return inode_id; 
+}
+
 void ls(char *path)
 {
 
 }
+
+
 void mkdir(char *path)
 {
+    char name[121];
+    uint32_t inode_id = find_path(path, name);
+    if(inode_id<0 || name[0]=='\0')
+        return;
+    
+    inode* inode_path = read_inode_block_from_disk(inode_id);
+    //这里每个新目录都放到一个新的block里面,可以改进
+    int block_id;
+    get_free_block(1, &block_id);
 
+    int success = 0;
+    for(int i=1; i<6; i++)
+    {
+        if(inode_path->block_point[i] == 0)
+        {
+            inode_path->block_point[i] = block_id;
+            inode_path->size++ ;
+            write_inode_block_to_disk(inode_id);
+            success = 1;
+            break;
+        }
+    }
+
+    if(!success)
+    {
+        printf("no more block pointer for dir %s\n", path);
+        return;
+    }
+
+    uint32_t inode_new_id = get_free_inode();
+
+    read_dir_table_from_disk(block_id);
+    dir_table[0].inode_id = inode_new_id;
+    dir_table[0].valid = DIR_VALID;
+    dir_table[0].type = TYPE_FOLDER;
+    strcpy(dir_table[0].name, name);
+    write_dir_table_to_disk(block_id);
+
+    inode* inode_new = read_inode_block_from_disk(inode_new_id);
+    inode_new->size += 1;
+    inode_new->file_type = TYPE_FOLDER;
+    inode_new->link += 1;
+    inode_new->block_point[0] = 0;
+    write_inode_block_to_disk(inode_new_id);
 }
+
+
 void torch(char *path)
 {
 
