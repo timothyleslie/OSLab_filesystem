@@ -17,6 +17,7 @@ void main()
         printf("fail to open the disk\n");
         return;
     }
+    filesys_init();
     char cmd[MAXLINE];
     while(getcmd(cmd, MAXLINE) >= 0)
     {
