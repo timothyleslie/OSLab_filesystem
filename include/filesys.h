@@ -3,6 +3,20 @@
 #include <stdint.h>
 #include <string.h>
 
+#define SYS_MAGIC_NUM  180110318
+#define BLOCK_SIZE 1024
+#define SUPER_BLOCK_INDEX 0 //super block放在第0块
+#define INODE_BLOCK_INDEX 1 //inode 的起始块号为1
+#define INODE_BLOCK_NUMS 32 //inode总共有32个块
+#define INODE_NUMS_EACH_BLOCK 32 //每个数据块里面有32个inode
+#define DIR_ITEMS_EACH_BLOCK  8
+#define TYPE_FOLDER 0
+#define TYPE_FILE   1
+
+#define DIR_VALID 1
+#define DIR_INVALID 0
+
+typedef unsigned   uint32_t;
 
 typedef struct super_block {
     int32_t magic_num;                  // 幻数
@@ -14,17 +28,30 @@ typedef struct super_block {
 } sp_block;
 
 
-struct inode {
+typedef struct inode {
     uint32_t size;              // 文件大小
     uint16_t file_type;         // 文件类型（文件/文件夹）
     uint16_t link;              // 连接数
     uint32_t block_point[6];    // 数据块指针
-};
+} inode;
 
 
-struct dir_item {               // 目录项一个更常见的叫法是 dirent(directory entry)
+typedef struct dir_item {               // 目录项一个更常见的叫法是 dirent(directory entry)
     uint32_t inode_id;          // 当前目录项表示的文件/目录的对应inode
     uint16_t valid;             // 当前目录项是否有效 
     uint8_t type;               // 当前目录项类型（文件/目录）
     char name[121];             // 目录项表示的文件/目录的文件名/目录名
-};
+}dir_item;
+
+sp_block *super_block;
+inode inode_table[1024];
+dir_item dir_table[DIR_ITEMS_EACH_BLOCK];
+
+void filesys_init(sp_block *super_block);
+void ls(char *path);
+void mkdir(char *path);
+void torch(char *path, int size);
+void copy(char *dest, char *src);
+int get_free_inode();
+int get_free_block(int block_num, int* blocks_index);
+int shutdown();

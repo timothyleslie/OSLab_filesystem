@@ -1,0 +1,17 @@
+[
+{
+  "directory": "/home/timothy/Documents/vscode/operating-system/filesys/build",
+  "command": "/usr/bin/gcc-7  -I/home/timothy/Documents/vscode/operating-system/filesys/./include  -g   -o CMakeFiles/main.dir/src/disk.c.o   -c /home/timothy/Documents/vscode/operating-system/filesys/src/disk.c",
+  "file": "/home/timothy/Documents/vscode/operating-system/filesys/src/disk.c"
+},
+{
+  "directory": "/home/timothy/Documents/vscode/operating-system/filesys/build",
+  "command": "/usr/bin/gcc-7  -I/home/timothy/Documents/vscode/operating-system/filesys/./include  -g   -o CMakeFiles/main.dir/src/filesys.c.o   -c /home/timothy/Documents/vscode/operating-system/filesys/src/filesys.c",
+  "file": "/home/timothy/Documents/vscode/operating-system/filesys/src/filesys.c"
+},
+{
+  "directory": "/home/timothy/Documents/vscode/operating-system/filesys/build",
+  "command": "/usr/bin/gcc-7  -I/home/timothy/Documents/vscode/operating-system/filesys/./include  -g   -o CMakeFiles/main.dir/src/main.c.o   -c /home/timothy/Documents/vscode/operating-system/filesys/src/main.c",
+  "file": "/home/timothy/Documents/vscode/operating-system/filesys/src/main.c"
+}
+]

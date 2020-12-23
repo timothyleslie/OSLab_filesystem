@@ -1,0 +1,1 @@
+/usr/bin/gcc-7 -g   CMakeFiles/main.dir/src/disk.c.o CMakeFiles/main.dir/src/filesys.c.o CMakeFiles/main.dir/src/main.c.o  -o ../src/main 
