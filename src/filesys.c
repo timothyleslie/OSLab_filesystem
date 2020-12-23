@@ -248,6 +248,7 @@ int get_free_block(int block_num, int* blocks_index)
                 block_num -= 1;
                 if(block_num ==0)
                 {
+                    write_spblock_to_disk();
                     return 0;
                 }
                 else
@@ -261,7 +262,7 @@ int get_free_block(int block_num, int* blocks_index)
 }
 
 
-int find_path(char *path, char *name)
+int find_prev_path(char *path, char *name)
 {
     int i=0;
     int j=0;
@@ -315,10 +316,61 @@ int find_path(char *path, char *name)
     return inode_id; 
 }
 
+
+int find_cur_path(char *path, char *name)
+{
+    int i=0;
+    int j=0;
+    int inode_id=0;
+
+    i = path[0]=='/' ? 1:0;
+    while(path[i] != '\0')
+    {
+        if(path[i]!='/')
+        {
+            name[j++] = path[i];
+        }
+
+        if(path[i]=='/' || path[i+1]=='\0')
+        {
+            name[j] = '\0';
+            j=0;
+            inode* inode_tmp = read_inode_block_from_disk(inode_id);
+            int success = 0;
+            for(int k=0; k<inode_tmp->size; k++)
+            {
+                read_dir_table_from_disk(inode_tmp->block_point[k]);
+                for(int l=0; l<8; l++)
+                {
+                    if(dir_table[l].valid==DIR_VALID
+                        && dir_table[l].type==TYPE_FOLDER
+                        && !strcmp(dir_table[l].name, name))
+                        {
+                            inode_id = dir_table[l].inode_id;
+                            success = 1;
+                            k = inode_tmp->size;
+                        }
+                }
+            }
+
+            if(!success)
+            {
+                printf("Directory doesn't exist\n");
+                return -1;
+            }
+        }
+
+        i++;
+    }
+    return inode_id; 
+}
+
+
 void ls(char *path)
 {
     char name[121];
-    uint32_t inode_id = find_path(path, name);
+    memset(name, 0, 121);
+    uint32_t inode_id = find_cur_path(path, name);
     inode* inode_path = read_inode_block_from_disk(inode_id);
     for(int i=0; i<inode_path->size; i++)
     {
@@ -341,7 +393,7 @@ void mkdir(char *path)
 {
     char name[121];
     memset(name, 0, 121);
-    uint32_t inode_id = find_path(path, name);
+    uint32_t inode_id = find_prev_path(path, name);
     if(inode_id<0 || name[0]=='\0')
         return;
     
