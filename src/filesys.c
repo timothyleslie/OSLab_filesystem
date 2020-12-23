@@ -59,7 +59,7 @@ inode* read_inode_block_from_disk(int inode_id)
  * @brief 从磁盘中读取目录块,存放到dir_table中
  * @return 读取失败返回-1, 成功返回0
  */
-int read_dir_item_from_disk(int block_id)
+int read_dir_table_from_disk(int block_id)
 {
     if(read_block_from_disk(block_id) != 0)
     {
@@ -120,7 +120,7 @@ int write_inode_block_to_disk(int inode_id)
  * @brief 将dir_table块写入到磁盘中
  * @return 写入成功返回0, 失败返回-1
  */
-int write_inode_block_to_disk(int block_id)
+int write_dir_table_to_disk(int block_id)
 {
     memcpy(buf, dir_table, BLOCK_SIZE);
     if(!write_block_to_disk(block_id))
@@ -134,7 +134,50 @@ int write_inode_block_to_disk(int block_id)
  * @brief 
  * @return 
  */
-void filesys_init()
+int filesys_init()
 {
+    read_spblock_from_disk();
+    if(super_block_buf.magic_num == SYS_MAGIC_NUM)
+        return 0; 
+    else
+    {
+        super_block_buf.magic_num = SYS_MAGIC_NUM;
+        super_block_buf.free_block_count = 4062;
+        super_block_buf.free_inode_count = 1023;
+        super_block_buf.dir_inode_count = 1;
+        memset(super_block_buf.block_map, 0, 128);
+        memset(super_block_buf.inode_map, 0, 32);
+        super_block_buf.block_map[0] = ~0;
+        super_block_buf.block_map[1] = 0xc0000000;
+        super_block_buf.inode_map[0] = 0x80000000;
 
+        inode* root_inode = read_inode_block_from_disk(0);
+        root_inode->size = 1;
+        root_inode->file_type = TYPE_FOLDER;
+        root_inode->link = 0;
+        root_inode->block_point[0] = 33;
+        write_inode_block_to_disk(0);
+
+        read_dir_table_from_disk(33);
+        dir_table[0].inode_id = 0;
+        dir_table[0].valid = DIR_VALID;
+        dir_table[0].type = TYPE_FOLDER;
+        strcpy(dir_table->name, ".");
+    }
+    return 0;
+}
+
+
+void shutdown()
+{
+    printf("shutdown the file system ...\n");
+    if(close_disk() >= 0)
+    {
+        printf("success to shutdown the file system\n");
+    }
+    else
+    {
+        pritnf("fail to shutdown the file system\n");
+    }
+    
 }
