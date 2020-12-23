@@ -179,5 +179,5 @@ void shutdown()
     {
         pritnf("fail to shutdown the file system\n");
     }
-    
+    exit(0);
 }
