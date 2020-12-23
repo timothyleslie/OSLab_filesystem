@@ -366,6 +366,55 @@ int find_cur_path(char *path, char *name)
 }
 
 
+int find_cur_file(char *path, char *name)
+{
+    int i=0;
+    int j=0;
+    int inode_id=0;
+
+    i = path[0]=='/' ? 1:0;
+    while(path[i] != '\0')
+    {
+        if(path[i]!='/')
+        {
+            name[j++] = path[i];
+        }
+
+        if(path[i]=='/' || path[i+1]=='\0')
+        {
+            name[j] = '\0';
+            j=0;
+            inode* inode_tmp = read_inode_block_from_disk(inode_id);
+            int success = 0;
+            for(int k=0; k<inode_tmp->size; k++)
+            {
+                read_dir_table_from_disk(inode_tmp->block_point[k]);
+                for(int l=0; l<8; l++)
+                {
+                    if(dir_table[l].valid==DIR_VALID
+                        && dir_table[l].type==TYPE_FILE
+                        && !strcmp(dir_table[l].name, name))
+                        {
+                            inode_id = dir_table[l].inode_id;
+                            success = 1;
+                            k = inode_tmp->size;
+                        }
+                }
+            }
+
+            if(!success)
+            {
+                printf("Directory doesn't exist\n");
+                return -1;
+            }
+        }
+
+        i++;
+    }
+    return inode_id; 
+}
+
+
 void ls(char *path)
 {
     char name[121];
@@ -393,7 +442,7 @@ void mkdir(char *path)
 {
     char name[121];
     memset(name, 0, 121);
-    uint32_t inode_id = find_prev_path(path, name);
+    uint32_t inode_id = find_prev_path(path, name, TYPE_FOLDER);
     if(inode_id<0 || name[0]=='\0')
         return;
     
@@ -441,9 +490,82 @@ void mkdir(char *path)
 
 void torch(char *path)
 {
+    char name[121];
+    memset(name, 0, 121);
+    uint32_t inode_id = find_prev_path(path, name, );
+    if(inode_id<0 || name[0]=='\0')
+        return;
+    
+    inode* inode_path = read_inode_block_from_disk(inode_id);
+    //这里每个新目录都放到一个新的block里面,可以改进
+    int block_id;
+    get_free_block(1, &block_id);
 
+    int success = 0;
+    for(int i=1; i<6; i++)
+    {
+        if(inode_path->block_point[i] == 0)
+        {
+            inode_path->block_point[i] = block_id;
+            inode_path->size++ ;
+            write_inode_block_to_disk(inode_id);
+            success = 1;
+            break;
+        }
+    }
+
+    if(!success)
+    {
+        printf("no more block pointer for dir %s\n", path);
+        return;
+    }
+
+    uint32_t inode_new_id = get_free_inode();
+
+    read_dir_table_from_disk(block_id);
+    dir_table[0].inode_id = inode_new_id;
+    dir_table[0].valid = DIR_VALID;
+    dir_table[0].type = TYPE_FILE;
+    strcpy(dir_table[0].name, name);
+    write_dir_table_to_disk(block_id);
+
+    inode* inode_new = read_inode_block_from_disk(inode_new_id);
+    inode_new->size += 1;
+    inode_new->file_type = TYPE_FILE;
+    inode_new->link += 1;
+    inode_new->block_point[0] = 0;
+    write_inode_block_to_disk(inode_new_id);
 }
+
+
+
 void copy(char *dest, char *src)
 {
+    char src_name[121];
+    int src_inode_id = find_cur_file(src, src_name);
+    inode* tmp_inode = read_inode_block_from_disk(src_inode_id);
+    inode src_inode = *tmp_inode;
 
+    char dest_name[121];
+    int dest_path_inode_id = find_prev_path(dest, dest_name);
+    inode* dest_path_inode = read_inode_block_from_disk(dest_path_inode_id);
+    char tmp[BLOCK_SIZE];
+    
+    dest_path_inode->size = src_inode.size;
+    dest_path_inode->file_type = TYPE_FILE;
+    for(int i=0; i<6; i++)
+    {
+        if(src_inode.block_point[i] != 0)
+        {
+            int dest_block_index;
+            read_block_from_disk(dest_path_inode->block_point[i]);
+            memcpy(tmp, buf, BLOCK_SIZE);
+            get_free_block(1, &dest_block_index);
+            memcpy(buf, tmp, BLOCK_SIZE);
+            write_block_to_disk(dest_block_index);
+
+            dest_path_inode->block_point[i] = dest_block_index;
+            
+        }
+    }
 }
