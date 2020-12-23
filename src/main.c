@@ -62,7 +62,7 @@ void runcmd(char* argv[], int argc) //运行命令
     {
         if(argc==1)
         {
-            char root = "/";
+            char root = '/';
             ls(&root);
         }
         else
@@ -83,12 +83,12 @@ void runcmd(char* argv[], int argc) //运行命令
 
     if(!strcmp(argv[0], "torch"))
     {
-        if(argc <= 2)
+        if(argc <= 1)
         {
             printf("no enough arguments'\n");
             return;
         }
-        torch(argv[1], argv[2]);
+        torch(argv[1]);
     }
 
     if(!strcmp(argv[0], "cp"))

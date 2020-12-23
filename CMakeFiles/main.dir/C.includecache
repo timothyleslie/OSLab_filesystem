@@ -1,0 +1,40 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+./include/disk.h
+
+./include/filesys.h
+stdio.h
+-
+stdlib.h
+-
+stdint.h
+-
+string.h
+-
+unistd.h
+-
+
+/home/timothy/Documents/vscode/operating-system/filesys/src/disk.c
+disk.h
+/home/timothy/Documents/vscode/operating-system/filesys/src/disk.h
+stdio.h
+-
+
+/home/timothy/Documents/vscode/operating-system/filesys/src/filesys.c
+filesys.h
+/home/timothy/Documents/vscode/operating-system/filesys/src/filesys.h
+disk.h
+/home/timothy/Documents/vscode/operating-system/filesys/src/disk.h
+
+/home/timothy/Documents/vscode/operating-system/filesys/src/main.c
+disk.h
+/home/timothy/Documents/vscode/operating-system/filesys/src/disk.h
+filesys.h
+/home/timothy/Documents/vscode/operating-system/filesys/src/filesys.h
+

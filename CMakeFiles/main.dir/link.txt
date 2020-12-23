@@ -1,0 +1,1 @@
+/usr/bin/cc    CMakeFiles/main.dir/src/disk.c.o CMakeFiles/main.dir/src/filesys.c.o CMakeFiles/main.dir/src/main.c.o  -o /home/timothy/Documents/vscode/operating-system/src/main 

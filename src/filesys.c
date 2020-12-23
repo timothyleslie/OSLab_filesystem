@@ -33,7 +33,7 @@ int read_spblock_from_disk()
         printf("fail to read super block\n");
         return -1;
     }
-    memcpy(&super_block_buf, buf, sizeof(BLOCK_SIZE));
+    memcpy(&super_block_buf, buf, BLOCK_SIZE);
     return 0;
 }
 
@@ -48,7 +48,7 @@ inode* read_inode_block_from_disk(int inode_id)
     if(read_block_from_disk(inode_block_id) != 0)
     {
         printf("fail to read inode %d\n", inode_id);
-        return -1;
+        return NULL;
     }
     memcpy(inode_buf, buf, BLOCK_SIZE);
     return &(inode_buf[inode_id%INODE_NUMS_EACH_BLOCK]);
@@ -94,8 +94,15 @@ int write_block_to_disk(int block_id)
 int write_spblock_to_disk()
 {
     memcpy(buf, &super_block_buf, BLOCK_SIZE);
+
+    sp_block test_block;
+    
     if(!write_block_to_disk(SUPER_BLOCK_INDEX))
+    {
+        memcpy(&test_block, buf, BLOCK_SIZE);
         return 0;
+    }
+    
     printf("fail to write superblock to disk\n");
     return -1;
 }
@@ -131,14 +138,14 @@ int write_dir_table_to_disk(int block_id)
 
 
 /**
- * @brief 
- * @return 
+ * @brief 初始化文件系统
+ * @return 成功初始化返回0
  */
-int filesys_init()
+void filesys_init()
 {
     read_spblock_from_disk();
     if(super_block_buf.magic_num == SYS_MAGIC_NUM)
-        return 0; 
+        return ; 
     else
     {
         super_block_buf.magic_num = SYS_MAGIC_NUM;
@@ -150,6 +157,7 @@ int filesys_init()
         super_block_buf.block_map[0] = ~0;
         super_block_buf.block_map[1] = 0xc0000000;
         super_block_buf.inode_map[0] = 0x80000000;
+        write_spblock_to_disk();
 
         inode* root_inode = read_inode_block_from_disk(0);
         root_inode->size = 1;
@@ -164,7 +172,7 @@ int filesys_init()
         dir_table[0].type = TYPE_FOLDER;
         strcpy(dir_table->name, ".");
     }
-    return 0;
+    return;
 }
 
 
@@ -177,7 +185,24 @@ void shutdown()
     }
     else
     {
-        pritnf("fail to shutdown the file system\n");
+        printf("fail to shutdown the file system\n");
     }
     exit(0);
+}
+
+void ls(char *path)
+{
+
+}
+void mkdir(char *path)
+{
+
+}
+void torch(char *path)
+{
+
+}
+void copy(char *dest, char *src)
+{
+
 }

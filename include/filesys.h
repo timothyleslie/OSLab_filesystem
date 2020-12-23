@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <unistd.h>
 
 #define SYS_MAGIC_NUM  180110318
 #define BLOCK_SIZE 1024
@@ -50,8 +51,8 @@ dir_item dir_table[DIR_ITEMS_EACH_BLOCK];
 void filesys_init();
 void ls(char *path);
 void mkdir(char *path);
-void torch(char *path, int size);
+void torch(char *path);
 void copy(char *dest, char *src);
 int get_free_inode();
 int get_free_block(int block_num, int* blocks_index);
-int shutdown();
+void shutdown();
