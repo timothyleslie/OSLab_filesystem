@@ -244,7 +244,7 @@ int get_free_block(int block_num, int* blocks_index)
             {
                 super_block_buf.block_map[i] |= mask;
                 super_block_buf.free_block_count -= 1;
-                *blocks_index = i*128+j;
+                *blocks_index = i*32+j;
                 block_num -= 1;
                 if(block_num ==0)
                 {
@@ -317,13 +317,30 @@ int find_path(char *path, char *name)
 
 void ls(char *path)
 {
-
+    char name[121];
+    uint32_t inode_id = find_path(path, name);
+    inode* inode_path = read_inode_block_from_disk(inode_id);
+    for(int i=0; i<inode_path->size; i++)
+    {
+        read_dir_table_from_disk(inode_path->block_point[i]);
+        for(int j=0; j<8; j++)
+        {
+            if(dir_table[j].valid==DIR_VALID)
+            {
+                if(dir_table[j].name[0]=='\0')
+                    continue;
+                else
+                    printf("%s\n",dir_table[j].name);         
+            }
+        }
+    }
 }
 
 
 void mkdir(char *path)
 {
     char name[121];
+    memset(name, 0, 121);
     uint32_t inode_id = find_path(path, name);
     if(inode_id<0 || name[0]=='\0')
         return;
