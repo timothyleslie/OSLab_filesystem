@@ -145,9 +145,10 @@ void filesys_init()
         return ; 
     else
     {
-        super_block_buf.magic_num = SYS_MAGIC_NUM;
-        super_block_buf.free_block_count = 4062;
-        super_block_buf.free_inode_count = 1023;
+        // init super_block
+        super_block_buf.magic_num = SYS_MAGIC_NUM; //180110318
+        super_block_buf.free_block_count = 4062; //4096-32-1-1
+        super_block_buf.free_inode_count = 1023; //1024-1
         super_block_buf.dir_inode_count = 1;
         memset(super_block_buf.block_map, 0, 128);
         memset(super_block_buf.inode_map, 0, 32);
@@ -156,6 +157,7 @@ void filesys_init()
         super_block_buf.inode_map[0] = 0x80000000;
         write_spblock_to_disk();
 
+        // init inode block
         inode* root_inode = read_inode_block_from_disk(0);
         root_inode->size = 1;
         root_inode->file_type = TYPE_FOLDER;
@@ -163,6 +165,7 @@ void filesys_init()
         root_inode->block_point[0] = 33;
         write_inode_block_to_disk(0);
 
+        //init root data block
         read_dir_table_from_disk(33);
         dir_table[0].inode_id = 0;
         dir_table[0].valid = DIR_VALID;
@@ -173,6 +176,10 @@ void filesys_init()
 }
 
 
+/**
+ * @brief 关闭文件系统
+ * @return 
+ */
 void shutdown()
 {
     printf("shutdown the file system ...\n");
@@ -188,6 +195,10 @@ void shutdown()
 }
 
 
+/**
+ * @brief 获取空闲inode
+ * @return 成功初始化返回inode的id,失败返回-1
+ */
 int get_free_inode()
 {
     read_spblock_from_disk();
@@ -220,6 +231,10 @@ int get_free_inode()
 }
 
 
+/**
+ * @brief 获取空闲块, block_num为要获取的块数, 获得的block_id存到block_index中
+ * @return 成功返回0, 失败返回-1
+ */
 int get_free_block(int block_num, int* blocks_index)
 {
     read_spblock_from_disk();
@@ -262,6 +277,10 @@ int get_free_block(int block_num, int* blocks_index)
 }
 
 
+/**
+ * @brief 找到上一级目录的inode_id
+ * @return 成功初始化返回inode_id, 失败返回-1
+ */
 int find_prev_path(char *path, char *name)
 {
     int i=0;
@@ -306,7 +325,7 @@ int find_prev_path(char *path, char *name)
 
             if(!success)
             {
-                printf("Directory doesn't exist\n");
+                // printf("Directory doesn't exist\n");
                 return -1;
             }
         }
@@ -317,6 +336,10 @@ int find_prev_path(char *path, char *name)
 }
 
 
+/**
+ * @brief 找到当前目录的inode_id
+ * @return 成功初始化返回inode_id, 失败返回-1
+ */
 int find_cur_path(char *path, char *name)
 {
     int i=0;
@@ -355,7 +378,7 @@ int find_cur_path(char *path, char *name)
 
             if(!success)
             {
-                printf("Directory doesn't exist\n");
+                // printf("Directory doesn't exist\n");
                 return -1;
             }
         }
@@ -366,6 +389,10 @@ int find_cur_path(char *path, char *name)
 }
 
 
+/**
+ * @brief 找到file的inode_id
+ * @return 成功初始化返回inode_id, 失败返回-1
+ */
 int find_cur_file(char *path, char *name)
 {
     int i=0;
@@ -380,10 +407,39 @@ int find_cur_file(char *path, char *name)
             name[j++] = path[i];
         }
 
-        if(path[i]=='/' || path[i+1]=='\0')
+        if(path[i]=='/' &&path[i+1]!='\0')
         {
             name[j] = '\0';
             j=0;
+            inode* inode_tmp = read_inode_block_from_disk(inode_id);
+            int success = 0;
+            for(int k=0; k<inode_tmp->size; k++)
+            {
+                read_dir_table_from_disk(inode_tmp->block_point[k]);
+                for(int l=0; l<8; l++)
+                {
+                    if(dir_table[l].valid==DIR_VALID
+                        && dir_table[l].type==TYPE_FOLDER
+                        && !strcmp(dir_table[l].name, name))
+                        {
+                            inode_id = dir_table[l].inode_id;
+                            success = 1;
+                            k = inode_tmp->size;
+                        }
+                }
+            }
+
+            if(!success)
+            {
+                // printf("Directory %s doesn't exist\n", name);
+                return -1;
+            }
+        }
+
+        // 最后一级
+        if(path[i+1] == '\0')
+        {
+            name[j] = 0;
             inode* inode_tmp = read_inode_block_from_disk(inode_id);
             int success = 0;
             for(int k=0; k<inode_tmp->size; k++)
@@ -404,7 +460,7 @@ int find_cur_file(char *path, char *name)
 
             if(!success)
             {
-                printf("Directory %s doesn't exist\n", path);
+                // printf("file %s doesn't exist\n", name);
                 return -1;
             }
         }
@@ -415,12 +471,31 @@ int find_cur_file(char *path, char *name)
 }
 
 
+/**
+ * @brief 打印出path中的文件和文件夹
+ * @return 
+ */
 void ls(char *path)
 {
     char name[121];
     memset(name, 0, 121);
-    uint32_t inode_id = find_cur_path(path, name);
+
+    //找到path文件夹对应的inode_id
+    int inode_id = find_cur_path(path, name);
+    if(inode_id < 0)
+    {
+        printf("Folder %s is not exist\n", name);
+        return;
+    }
+
+    printf(".\n");
+    printf("..\n");
+
+    //根据inode_id读取path文件夹对应的inode
     inode* inode_path = read_inode_block_from_disk(inode_id);
+
+    //遍历inode_path的block_point指向的block
+    //打印block中存储的文件和文件夹的名字
     for(int i=0; i<inode_path->size; i++)
     {
         read_dir_table_from_disk(inode_path->block_point[i]);
@@ -438,24 +513,42 @@ void ls(char *path)
 }
 
 
-void mkdir(char *path)
+/**
+ * @brief 创建新的文件夹
+ * @return 成功则返回文件夹的inode_id,否则返回-1
+ */
+int mkdir(char *path)
 {
     char name[121];
     memset(name, 0, 121);
-    uint32_t inode_id = find_prev_path(path, name);
-    if(inode_id<0 || name[0]=='\0')
-        return;
-    
-    inode* inode_path = read_inode_block_from_disk(inode_id);
-    //这里每个新目录都放到一个新的block里面,可以改进
-    int block_id;
-    get_free_block(1, &block_id);
 
+    // 检查文件夹是否已经存在
+    if(find_cur_path(path, name) >= 0)
+    {
+        printf("Folder %s is already exist\n", path);
+        return -1;
+    }
+
+    int inode_id = find_prev_path(path, name);
+    if(inode_id < 0)
+    {
+        printf("Folder %s doesn't exist\n", name);
+        return -1;
+    }
+    if(inode_id<0 || name[0]=='\0')
+        return -1;
+    
+    // 找到上一级目录对应的inode
+    inode* inode_path = read_inode_block_from_disk(inode_id);
+    int block_id;
     int success = 0;
     for(int i=1; i<6; i++)
     {
         if(inode_path->block_point[i] == 0)
         {
+            //如果有空闲的block_point，则为目标文件夹申请block
+            //并且让空闲的block_point指向目标文件夹的block
+            get_free_block(1, &block_id);
             inode_path->block_point[i] = block_id;
             inode_path->size++ ;
             write_inode_block_to_disk(inode_id);
@@ -463,15 +556,16 @@ void mkdir(char *path)
             break;
         }
     }
-
     if(!success)
     {
         printf("no more block pointer for dir %s\n", path);
-        return;
+        return -1;
     }
 
-    uint32_t inode_new_id = get_free_inode();
+    //为目标文件夹申请inode
+    int inode_new_id = get_free_inode();
 
+    //设置目标文件夹的block
     read_dir_table_from_disk(block_id);
     dir_table[0].inode_id = inode_new_id;
     dir_table[0].valid = DIR_VALID;
@@ -479,33 +573,53 @@ void mkdir(char *path)
     strcpy(dir_table[0].name, name);
     write_dir_table_to_disk(block_id);
 
+    //设置目标文件夹的inode
     inode* inode_new = read_inode_block_from_disk(inode_new_id);
     inode_new->size += 1;
     inode_new->file_type = TYPE_FOLDER;
     inode_new->link += 1;
     inode_new->block_point[0] = 0;
     write_inode_block_to_disk(inode_new_id);
+    return inode_new_id;
 }
 
 
+/**
+ * @brief 创建文件
+ * @return 成功初始化返回文件的inode_id, 失败返回-1
+ */
 int touch(char *path)
 {
     char name[121];
     memset(name, 0, 121);
-    uint32_t inode_id = find_prev_path(path, name);
+
+    // 检查文件是否已经存在
+    if(find_cur_file(path, name) >= 0)
+    {
+        printf("file %s is already exist\n", path);
+        return -1;
+    }
+
+    int inode_id = find_prev_path(path, name);
+    if(inode_id < 0)
+    {
+        printf("File %s doesn't exist\n", name);
+        return -1;
+    }
     if(inode_id<0 || name[0]=='\0')
         return -1;
     
     inode* inode_path = read_inode_block_from_disk(inode_id);
-    //这里每个新目录都放到一个新的block里面,可以改进
-    int block_id;
-    get_free_block(1, &block_id);
 
+    int block_id;
     int success = 0;
     for(int i=1; i<6; i++)
     {
+        //如果有空闲的block_point，则为目标文件申请block
+        //并且让空闲的block_point指向目标文件的block
         if(inode_path->block_point[i] == 0)
         {
+            get_free_block(1, &block_id);
             inode_path->block_point[i] = block_id;
             inode_path->size++ ;
             write_inode_block_to_disk(inode_id);
@@ -520,8 +634,10 @@ int touch(char *path)
         return -1;
     }
 
-    uint32_t inode_new_id = get_free_inode();
+    //为目标文件申请inode
+    int inode_new_id = get_free_inode();
 
+    //设置目标文件的block
     read_dir_table_from_disk(block_id);
     dir_table[0].inode_id = inode_new_id;
     dir_table[0].valid = DIR_VALID;
@@ -529,6 +645,7 @@ int touch(char *path)
     strcpy(dir_table[0].name, name);
     write_dir_table_to_disk(block_id);
 
+    //设置目标文件的inode
     inode* inode_new = read_inode_block_from_disk(inode_new_id);
     inode_new->size += 1;
     inode_new->file_type = TYPE_FILE;
@@ -539,23 +656,46 @@ int touch(char *path)
 }
 
 
-
+/**
+ * @brief 将src文件复制到dest文件中
+ * @return 成功初始化返回inode_id, 失败返回-1
+ */
 void copy(char *dest, char *src)
 {
     char src_name[121];
     int src_inode_id = find_cur_file(src, src_name);
+    if(src_inode_id < 0)
+    {
+        printf("%s is not exist\n", src_name);
+        return;
+    }
     inode* tmp_inode = read_inode_block_from_disk(src_inode_id);
     inode src_inode = *tmp_inode;
+    if(src_inode.file_type != TYPE_FILE)
+    {
+        printf("%s is not a file\n", src_name);
+        return ;
+    }
 
     char dest_name[121];
-    int dest_inode_id = touch(dest);
+    int dest_inode_id;
+    // 检测dest文件是否已经存在,如果没有则新建一个
+    if((dest_inode_id = find_cur_file(dest, dest_name)) < 0)
+    {
+        dest_inode_id = touch(dest);
+    }
     
+    //获取dest文件的inode
     char tmp[BLOCK_SIZE];
     inode dest_inode;
     memcpy(&dest_inode, read_inode_block_from_disk(dest_inode_id), sizeof(inode));
+
+    //复制src_inode的内容给dest_inode
     dest_inode.size = src_inode.size;
     dest_inode.link = src_inode.link;
     dest_inode.file_type = TYPE_FILE;
+
+    //遍历src_inode的block, 复制给dest_inode
     for(int i=0; i<6; i++)
     {
         if(src_inode.block_point[i] != 0)
@@ -568,6 +708,10 @@ void copy(char *dest, char *src)
             write_block_to_disk(dest_block_index);
             
             dest_inode.block_point[i] = dest_block_index;
+        }
+        else
+        {
+            dest_inode.block_point[i] = 0;
         }
     }
     write_inode_block_to_disk(dest_inode_id);

@@ -71,7 +71,7 @@ void runcmd(char* argv[], int argc) //运行命令
         }
     }
 
-    if(!strcmp(argv[0], "mkdir"))
+    else if(!strcmp(argv[0], "mkdir"))
     {
         if(argc==1)
         {
@@ -81,7 +81,7 @@ void runcmd(char* argv[], int argc) //运行命令
         mkdir(argv[1]);
     }
 
-    if(!strcmp(argv[0], "touch"))
+    else if(!strcmp(argv[0], "touch"))
     {
         if(argc <= 1)
         {
@@ -91,7 +91,7 @@ void runcmd(char* argv[], int argc) //运行命令
         touch(argv[1]);
     }
 
-    if(!strcmp(argv[0], "cp"))
+    else if(!strcmp(argv[0], "cp"))
     {
         if(argc <= 2)
         {
@@ -101,8 +101,15 @@ void runcmd(char* argv[], int argc) //运行命令
         copy(argv[1], argv[2]);
     }
 
-    if(!strcmp(argv[0], "shutdown"))
+    else if(!strcmp(argv[0], "shutdown"))
     {
         shutdown();
     }
+
+    else
+    {
+        printf("error command %s\n");
+        return;
+    }
+
 }

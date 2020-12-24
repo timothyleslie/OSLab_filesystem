@@ -50,8 +50,8 @@ dir_item dir_table[DIR_ITEMS_EACH_BLOCK];
 
 void filesys_init();
 void ls(char *path);
-void mkdir(char *path);
-void torch(char *path);
+int mkdir(char *path);
+int touch(char *path);
 void copy(char *dest, char *src);
 int get_free_inode();
 int get_free_block(int block_num, int* blocks_index);
