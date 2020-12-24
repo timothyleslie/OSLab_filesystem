@@ -404,7 +404,7 @@ int find_cur_file(char *path, char *name)
 
             if(!success)
             {
-                printf("Directory doesn't exist\n");
+                printf("Directory %s doesn't exist\n", path);
                 return -1;
             }
         }
@@ -442,7 +442,7 @@ void mkdir(char *path)
 {
     char name[121];
     memset(name, 0, 121);
-    uint32_t inode_id = find_prev_path(path, name, TYPE_FOLDER);
+    uint32_t inode_id = find_prev_path(path, name);
     if(inode_id<0 || name[0]=='\0')
         return;
     
@@ -488,13 +488,13 @@ void mkdir(char *path)
 }
 
 
-void torch(char *path)
+int touch(char *path)
 {
     char name[121];
     memset(name, 0, 121);
-    uint32_t inode_id = find_prev_path(path, name, );
+    uint32_t inode_id = find_prev_path(path, name);
     if(inode_id<0 || name[0]=='\0')
-        return;
+        return -1;
     
     inode* inode_path = read_inode_block_from_disk(inode_id);
     //这里每个新目录都放到一个新的block里面,可以改进
@@ -517,7 +517,7 @@ void torch(char *path)
     if(!success)
     {
         printf("no more block pointer for dir %s\n", path);
-        return;
+        return -1;
     }
 
     uint32_t inode_new_id = get_free_inode();
@@ -535,6 +535,7 @@ void torch(char *path)
     inode_new->link += 1;
     inode_new->block_point[0] = 0;
     write_inode_block_to_disk(inode_new_id);
+    return inode_new_id;
 }
 
 
@@ -547,25 +548,27 @@ void copy(char *dest, char *src)
     inode src_inode = *tmp_inode;
 
     char dest_name[121];
-    int dest_path_inode_id = find_prev_path(dest, dest_name);
-    inode* dest_path_inode = read_inode_block_from_disk(dest_path_inode_id);
-    char tmp[BLOCK_SIZE];
+    int dest_inode_id = touch(dest);
     
-    dest_path_inode->size = src_inode.size;
-    dest_path_inode->file_type = TYPE_FILE;
+    char tmp[BLOCK_SIZE];
+    inode dest_inode;
+    memcpy(&dest_inode, read_inode_block_from_disk(dest_inode_id), sizeof(inode));
+    dest_inode.size = src_inode.size;
+    dest_inode.link = src_inode.link;
+    dest_inode.file_type = TYPE_FILE;
     for(int i=0; i<6; i++)
     {
         if(src_inode.block_point[i] != 0)
         {
             int dest_block_index;
-            read_block_from_disk(dest_path_inode->block_point[i]);
+            read_block_from_disk(src_inode.block_point[i]);
             memcpy(tmp, buf, BLOCK_SIZE);
             get_free_block(1, &dest_block_index);
             memcpy(buf, tmp, BLOCK_SIZE);
             write_block_to_disk(dest_block_index);
-
-            dest_path_inode->block_point[i] = dest_block_index;
             
+            dest_inode.block_point[i] = dest_block_index;
         }
     }
+    write_inode_block_to_disk(dest_inode_id);
 }

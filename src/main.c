@@ -81,14 +81,14 @@ void runcmd(char* argv[], int argc) //运行命令
         mkdir(argv[1]);
     }
 
-    if(!strcmp(argv[0], "torch"))
+    if(!strcmp(argv[0], "touch"))
     {
         if(argc <= 1)
         {
             printf("no enough arguments'\n");
             return;
         }
-        torch(argv[1]);
+        touch(argv[1]);
     }
 
     if(!strcmp(argv[0], "cp"))
