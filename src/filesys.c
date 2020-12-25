@@ -185,7 +185,7 @@ void shutdown()
     printf("shutdown the file system ...\n");
     if(close_disk() >= 0)
     {
-        printf("success to shutdown the file system\n");
+        printf("Successfully to shutdown the file system\n");
     }
     else
     {
@@ -491,7 +491,7 @@ void ls(char *path)
         printf("Folder %s is not exist\n", name);
         return;
     }
-
+    // inode_id = 0;
     printf(".\n");
     printf("..\n");
 
@@ -691,7 +691,6 @@ void copy(char *dest, char *src)
     {
         dest_inode_id = touch(dest);
     }
-    
     //获取dest文件的inode
     char tmp[BLOCK_SIZE];
     inode dest_inode;
