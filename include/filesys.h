@@ -44,6 +44,8 @@ typedef struct dir_item {               // 目录项一个更常见的叫法是 
     char name[121];             // 目录项表示的文件/目录的文件名/目录名
 }dir_item;
 
+
+char buf[BLOCK_SIZE]; 
 sp_block super_block_buf;
 inode inode_buf[INODE_NUMS_EACH_BLOCK];
 dir_item dir_table[DIR_ITEMS_EACH_BLOCK];

@@ -1,8 +1,6 @@
 #include "filesys.h"
 #include "disk.h"
 
-char buf[BLOCK_SIZE];
-
 /**
  * @brief 根据数据块号读取磁盘块, 读取内容存放到buf中
  * @return 读取失败返回-1, 成功返回0
@@ -480,7 +478,7 @@ int find_cur_file(char *path, char *name)
  * @param inode_prev_path为上一级目录的inode
  * @param block_id为创建的dir_item所在的目录块号
  * @param dir_item_index为创建的dir_item在目录快的位置
- * @return 成功初始化返回inode_id, 失败返回-1
+ * @return 成功初始化返回0, 失败返回-1
  */
 int create_dir_item(int prev_path_inode_id, inode *inode_prev_path, int*block_id, int*dir_item_index)
 {
@@ -587,20 +585,23 @@ int mkdir(char *path)
     }
 
     memset(name, 0, 121);
-    int inode_id = find_prev_path(path, name);
-    if(inode_id < 0)
+    int prev_path_inode_id = find_prev_path(path, name);
+    if(prev_path_inode_id < 0)
     {
         printf("Folder %s doesn't exist\n", name);
         return -1;
     }
-    if(inode_id<0 || name[0]=='\0')
+    if(prev_path_inode_id<0 || name[0]=='\0')
         return -1;
     
     // 找到上一级目录对应的inode
-    inode* inode_path = read_inode_block_from_disk(inode_id);
-    int block_id;
-    int dir_item_index=0;
-    if(create_dir_item(inode_id, inode_path, &block_id, &dir_item_index) < 0)
+    inode* prev_path_inode = read_inode_block_from_disk(prev_path_inode_id);
+
+
+    //为目标文件夹创建dir_item
+    int block_id; // dir_item所在的块号
+    int dir_item_index; //dir_item在块中的位置
+    if(create_dir_item(prev_path_inode_id, prev_path_inode, &block_id, &dir_item_index) < 0)
     {
         printf("cannot create dir_item for %s\n", path);
         return -1;
@@ -645,20 +646,21 @@ int touch(char *path)
     }
 
     memset(name, 0, 121);
-    int inode_id = find_prev_path(path, name);
-    if(inode_id < 0)
+    int prev_path_inode_id = find_prev_path(path, name);
+    if(prev_path_inode_id < 0)
     {
         printf("File %s doesn't exist\n", name);
         return -1;
     }
-    if(inode_id<0 || name[0]=='\0')
+    if(prev_path_inode_id<0 || name[0]=='\0')
         return -1;
     
-    inode* inode_path = read_inode_block_from_disk(inode_id);
+    inode* prev_path_inode = read_inode_block_from_disk(prev_path_inode_id);
 
-    int block_id;
-    int dir_item_index;
-    if(create_dir_item(inode_id, inode_path, &block_id, &dir_item_index) < 0)
+    //为目标文件创建dir_item
+    int block_id; // dir_item所在的块号
+    int dir_item_index; //dir_item在块中的位置
+    if(create_dir_item(prev_path_inode_id, prev_path_inode, &block_id, &dir_item_index) < 0)
     {
         printf("cannot create dir_item for %s\n", path);
         return -1;
