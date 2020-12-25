@@ -326,12 +326,14 @@ int find_prev_path(char *path, char *name)
             if(!success)
             {
                 // printf("Directory doesn't exist\n");
+                name[j] = '\0';
                 return -1;
             }
         }
 
         i++;
     }
+    name[j] = '\0';
     return inode_id; 
 }
 
@@ -378,13 +380,14 @@ int find_cur_path(char *path, char *name)
 
             if(!success)
             {
-                // printf("Directory doesn't exist\n");
+                name[j] = '\0';
                 return -1;
             }
         }
 
         i++;
     }
+    name[j] = '\0';
     return inode_id; 
 }
 
@@ -460,13 +463,14 @@ int find_cur_file(char *path, char *name)
 
             if(!success)
             {
-                // printf("file %s doesn't exist\n", name);
+                name[j] = '\0';
                 return -1;
             }
         }
 
         i++;
     }
+    name[j] = '\0';
     return inode_id; 
 }
 
@@ -529,6 +533,7 @@ int mkdir(char *path)
         return -1;
     }
 
+    memset(name, 0, 121);
     int inode_id = find_prev_path(path, name);
     if(inode_id < 0)
     {
@@ -600,6 +605,7 @@ int touch(char *path)
         return -1;
     }
 
+    memset(name, 0, 121);
     int inode_id = find_prev_path(path, name);
     if(inode_id < 0)
     {
@@ -678,6 +684,7 @@ void copy(char *dest, char *src)
     }
 
     char dest_name[121];
+    memset(dest_name, 0, 121);
     int dest_inode_id;
     // 检测dest文件是否已经存在,如果没有则新建一个
     if((dest_inode_id = find_cur_file(dest, dest_name)) < 0)
