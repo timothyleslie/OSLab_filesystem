@@ -326,11 +326,10 @@ int find_prev_path(char *path, char *name)
             if(!success)
             {
                 // printf("Directory doesn't exist\n");
-                name[j] = '\0';
+                // name[j] = '\0';
                 return -1;
             }
         }
-
         i++;
     }
     name[j] = '\0';
@@ -380,14 +379,14 @@ int find_cur_path(char *path, char *name)
 
             if(!success)
             {
-                name[j] = '\0';
+                // name[j] = '\0';
                 return -1;
             }
         }
 
         i++;
     }
-    name[j] = '\0';
+    // name[j] = '\0';
     return inode_id; 
 }
 
@@ -463,15 +462,69 @@ int find_cur_file(char *path, char *name)
 
             if(!success)
             {
-                name[j] = '\0';
+                // name[j] = '\0';
                 return -1;
             }
         }
 
         i++;
     }
-    name[j] = '\0';
+    // name[j] = '\0';
     return inode_id; 
+}
+
+
+/**
+ * @brief 给目标文件或文件夹创建dir_item
+ * @param prev_path_inode_id为上一级目录的inode_id
+ * @param inode_prev_path为上一级目录的inode
+ * @param block_id为创建的dir_item所在的目录块号
+ * @param dir_item_index为创建的dir_item在目录快的位置
+ * @return 成功初始化返回inode_id, 失败返回-1
+ */
+int create_dir_item(int prev_path_inode_id, inode *inode_prev_path, int*block_id, int*dir_item_index)
+{
+    int success=0;
+
+    //优先从上一级目录中已有的目录块找到空闲的dir_item.
+    for(int i=0; i<6; i++)
+    {
+        if(inode_prev_path->block_point[i] != 0 && !success)
+        {
+            read_dir_table_from_disk(inode_prev_path->block_point[i]);
+            for(int j=0; j<DIR_ITEMS_EACH_BLOCK; j++)
+            {
+                if(dir_table[j].valid==DIR_INVALID)
+                {
+                    inode_prev_path->size++;
+                    write_inode_block_to_disk(prev_path_inode_id);
+                    *block_id = inode_prev_path->block_point[i];
+                    *dir_item_index = j;
+                    success = 1;
+                    return 0;
+                }
+            }
+        }
+    }
+
+    //如果上一级目录的目录块已经没有空闲的dir_item
+    for(int i=1; i<6; i++)
+    {
+        if(inode_prev_path->block_point[i] == 0 && !success)
+        {
+            //如果上一级目录有空闲的block_point
+            //则申请新的目录块
+            //并且让空闲的block_point指向目标文件夹的block
+            get_free_block(1, block_id);
+            inode_prev_path->block_point[i] = *block_id;
+            inode_prev_path->size++ ;
+            write_inode_block_to_disk(prev_path_inode_id);
+            dir_item_index = 0;
+            success = 1;
+            return 0;
+        }
+    }
+    return -1;
 }
 
 
@@ -546,36 +599,22 @@ int mkdir(char *path)
     // 找到上一级目录对应的inode
     inode* inode_path = read_inode_block_from_disk(inode_id);
     int block_id;
-    int success = 0;
-    for(int i=1; i<6; i++)
+    int dir_item_index=0;
+    if(create_dir_item(inode_id, inode_path, &block_id, &dir_item_index) < 0)
     {
-        if(inode_path->block_point[i] == 0)
-        {
-            //如果有空闲的block_point，则为目标文件夹申请block
-            //并且让空闲的block_point指向目标文件夹的block
-            get_free_block(1, &block_id);
-            inode_path->block_point[i] = block_id;
-            inode_path->size++ ;
-            write_inode_block_to_disk(inode_id);
-            success = 1;
-            break;
-        }
-    }
-    if(!success)
-    {
-        printf("no more block pointer for dir %s\n", path);
+        printf("cannot create dir_item for %s\n", path);
         return -1;
     }
 
     //为目标文件夹申请inode
     int inode_new_id = get_free_inode();
 
-    //设置目标文件夹的block
+    //设置目标文件夹的dir_item
     read_dir_table_from_disk(block_id);
-    dir_table[0].inode_id = inode_new_id;
-    dir_table[0].valid = DIR_VALID;
-    dir_table[0].type = TYPE_FOLDER;
-    strcpy(dir_table[0].name, name);
+    dir_table[dir_item_index].inode_id = inode_new_id;
+    dir_table[dir_item_index].valid = DIR_VALID;
+    dir_table[dir_item_index].type = TYPE_FOLDER;
+    strcpy(dir_table[dir_item_index].name, name);
     write_dir_table_to_disk(block_id);
 
     //设置目标文件夹的inode
@@ -618,37 +657,22 @@ int touch(char *path)
     inode* inode_path = read_inode_block_from_disk(inode_id);
 
     int block_id;
-    int success = 0;
-    for(int i=1; i<6; i++)
+    int dir_item_index;
+    if(create_dir_item(inode_id, inode_path, &block_id, &dir_item_index) < 0)
     {
-        //如果有空闲的block_point，则为目标文件申请block
-        //并且让空闲的block_point指向目标文件的block
-        if(inode_path->block_point[i] == 0)
-        {
-            get_free_block(1, &block_id);
-            inode_path->block_point[i] = block_id;
-            inode_path->size++ ;
-            write_inode_block_to_disk(inode_id);
-            success = 1;
-            break;
-        }
-    }
-
-    if(!success)
-    {
-        printf("no more block pointer for dir %s\n", path);
+        printf("cannot create dir_item for %s\n", path);
         return -1;
     }
-
+    
     //为目标文件申请inode
     int inode_new_id = get_free_inode();
 
-    //设置目标文件的block
+    //设置目标文件的dir_item
     read_dir_table_from_disk(block_id);
-    dir_table[0].inode_id = inode_new_id;
-    dir_table[0].valid = DIR_VALID;
-    dir_table[0].type = TYPE_FILE;
-    strcpy(dir_table[0].name, name);
+    dir_table[dir_item_index].inode_id = inode_new_id;
+    dir_table[dir_item_index].valid = DIR_VALID;
+    dir_table[dir_item_index].type = TYPE_FILE;
+    strcpy(dir_table[dir_item_index].name, name);
     write_dir_table_to_disk(block_id);
 
     //设置目标文件的inode
